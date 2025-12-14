@@ -1,51 +1,57 @@
 <?php
 require_once 'config.php';
 
-$userId = validateToken($pdo);
-if (!$userId) {
-    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
-    exit();
-}
-
-$data = json_decode(file_get_contents("php://input"));
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (empty($data->current_password) || empty($data->new_password)) {
-        echo json_encode(['success' => false, 'message' => 'Both current and new passwords are required']);
-        exit();
+if ($_SERVER['REQUEST_METHOD'] == 'PUT') {
+    $input = json_decode(file_get_contents("php://input"), true);
+    
+    if (!$input) {
+        sendResponse(false, "Invalid JSON data");
     }
-
-    // Get current password hash
-    $stmt = $pdo->prepare("SELECT password_hash FROM users WHERE id = ?");
-    $stmt->execute([$userId]);
-    $user = $stmt->fetch();
-
-    if (!$user || !password_verify($data->current_password, $user['password_hash'])) {
-        echo json_encode(['success' => false, 'message' => 'Current password is incorrect']);
-        exit();
+    
+    $error = validateRequired($input, ['user_id', 'current_password', 'new_password']);
+    if ($error) {
+        sendResponse(false, $error);
     }
-
+    
+    $userId = validateInput($input['user_id']);
+    $currentPassword = $input['current_password'];
+    $newPassword = $input['new_password'];
+    
     // Validate new password
-    if (strlen($data->new_password) < 6) {
-        echo json_encode(['success' => false, 'message' => 'New password must be at least 6 characters']);
-        exit();
+    if (strlen($newPassword) < 6) {
+        sendResponse(false, "New password must be at least 6 characters");
     }
-
+    
+    // Get current password
+    $stmt = $conn->prepare("SELECT password FROM users WHERE id = ?");
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows == 0) {
+        sendResponse(false, "User not found");
+    }
+    
+    $user = $result->fetch_assoc();
+    
+    // Verify current password
+    if (!password_verify($currentPassword, $user['password'])) {
+        sendResponse(false, "Current password is incorrect");
+    }
+    
+    // Hash new password
+    $hashedPassword = password_hash($newPassword, PASSWORD_BCRYPT);
+    
     // Update password
-    $newHash = password_hash($data->new_password, PASSWORD_BCRYPT);
-    $updateStmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?");
-
-    if ($updateStmt->execute([$newHash, $userId])) {
-        // Invalidate all existing tokens
-        $tokenStmt = $pdo->prepare("DELETE FROM user_tokens WHERE user_id = ?");
-        $tokenStmt->execute([$userId]);
-
-        echo json_encode([
-            'success' => true,
-            'message' => 'Password changed successfully. Please login again.'
-        ]);
+    $updateStmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+    $updateStmt->bind_param("si", $hashedPassword, $userId);
+    
+    if ($updateStmt->execute()) {
+        sendResponse(true, "Password changed successfully");
     } else {
-        echo json_encode(['success' => false, 'message' => 'Failed to change password']);
+        sendResponse(false, "Failed to change password: " . $updateStmt->error);
     }
+} else {
+    sendResponse(false, "Invalid request method. Use PUT");
 }
 ?>
