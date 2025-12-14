@@ -2,22 +2,23 @@
 require_once 'config.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // Get JSON input
     $input = json_decode(file_get_contents("php://input"), true);
     
     if (!$input) {
-        sendResponse(false, "Invalid input data");
+        sendResponse(false, "Invalid JSON data");
     }
     
-    $name = validateInput($input['name'] ?? '');
-    $email = validateInput($input['email'] ?? '');
-    $password = $input['password'] ?? '';
-    
-    // Validation
-    if (empty($name) || empty($email) || empty($password)) {
-        sendResponse(false, "All fields are required");
+    // Validate required fields
+    $error = validateRequired($input, ['name', 'email', 'password']);
+    if ($error) {
+        sendResponse(false, $error);
     }
     
+    $name = validateInput($input['name']);
+    $email = validateInput($input['email']);
+    $password = $input['password'];
+    
+    // Additional validation
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         sendResponse(false, "Invalid email format");
     }
@@ -26,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         sendResponse(false, "Password must be at least 6 characters");
     }
     
-    // Check if user exists
+    // Check if email exists
     $checkStmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
     $checkStmt->bind_param("s", $email);
     $checkStmt->execute();
@@ -37,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
     
     // Hash password
-    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+    $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
     
     // Insert user
     $stmt = $conn->prepare("INSERT INTO users (name, email, password) VALUES (?, ?, ?)");
@@ -45,15 +46,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     if ($stmt->execute()) {
         $userId = $stmt->insert_id;
-        sendResponse(true, "Registration successful", [
-            "user_id" => $userId,
-            "name" => $name,
-            "email" => $email
-        ]);
+        
+        // Get user data without password
+        $userStmt = $conn->prepare("SELECT id, name, email, age, weight, height, gender, daily_goal FROM users WHERE id = ?");
+        $userStmt->bind_param("i", $userId);
+        $userStmt->execute();
+        $userData = $userStmt->get_result()->fetch_assoc();
+        
+        sendResponse(true, "Registration successful", $userData);
     } else {
         sendResponse(false, "Registration failed: " . $stmt->error);
     }
 } else {
-    sendResponse(false, "Invalid request method");
+    sendResponse(false, "Invalid request method. Use POST");
 }
 ?>
