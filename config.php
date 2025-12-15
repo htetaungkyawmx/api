@@ -1,9 +1,21 @@
 <?php
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+
+// Headers for CORS
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With, Accept");
 header("Access-Control-Allow-Credentials: true");
+
+// Handle OPTIONS request for CORS
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 
 // Database configuration
 $host = "localhost";
@@ -61,9 +73,23 @@ function validateRequired($input, $requiredFields) {
     return null;
 }
 
-// Handle OPTIONS request for CORS
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    exit();
+// Function to handle JSON input
+function getJsonInput() {
+    $input = json_decode(file_get_contents("php://input"), true);
+    
+    // If JSON decode fails, check for form data
+    if (!$input) {
+        $input = $_POST;
+        
+        // If still no data, try to parse raw input 
+        if (empty($input)) {
+            $rawInput = file_get_contents("php://input");
+            if (!empty($rawInput)) {
+                parse_str($rawInput, $input);
+            }
+        }
+    }
+    
+    return $input;
 }
 ?>

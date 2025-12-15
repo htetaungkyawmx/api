@@ -1,0 +1,10 @@
+2025-12-15 04:12:19 - Register request received
+2025-12-15 04:12:39 - Register request received
+Input: Array
+(
+    [name] => Test User
+    [email] => test@gmail.com
+    [password] => password123
+)
+
+2025-12-15 04:13:22 - Register request received
