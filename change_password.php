@@ -2,15 +2,22 @@
 require_once 'config.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'PUT') {
-    $input = json_decode(file_get_contents("php://input"), true);
+    $input = getJsonInput();
     
     if (!$input) {
-        sendResponse(false, "Invalid JSON data");
+        sendResponse(false, "Invalid input data");
     }
     
-    $error = validateRequired($input, ['user_id', 'current_password', 'new_password']);
-    if ($error) {
-        sendResponse(false, $error);
+    if (!isset($input['user_id']) || empty($input['user_id'])) {
+        sendResponse(false, "User ID is required");
+    }
+    
+    if (!isset($input['current_password']) || empty($input['current_password'])) {
+        sendResponse(false, "Current password is required");
+    }
+    
+    if (!isset($input['new_password']) || empty($input['new_password'])) {
+        sendResponse(false, "New password is required");
     }
     
     $userId = validateInput($input['user_id']);
@@ -24,6 +31,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'PUT') {
     
     // Get current password
     $stmt = $conn->prepare("SELECT password FROM users WHERE id = ?");
+    
+    if (!$stmt) {
+        sendResponse(false, "Database error");
+    }
+    
     $stmt->bind_param("i", $userId);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -44,12 +56,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'PUT') {
     
     // Update password
     $updateStmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+    
+    if (!$updateStmt) {
+        sendResponse(false, "Database error");
+    }
+    
     $updateStmt->bind_param("si", $hashedPassword, $userId);
     
     if ($updateStmt->execute()) {
         sendResponse(true, "Password changed successfully");
     } else {
-        sendResponse(false, "Failed to change password: " . $updateStmt->error);
+        sendResponse(false, "Failed to change password");
     }
 } else {
     sendResponse(false, "Invalid request method. Use PUT");

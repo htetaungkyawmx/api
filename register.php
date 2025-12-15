@@ -1,26 +1,17 @@
 <?php
-// Enable error reporting
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-// Include config
 require_once 'config.php';
 
-// Log the request
-file_put_contents('debug.log', date('Y-m-d H:i:s') . " - Register request received\n", FILE_APPEND);
-
-// Check request method
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     // Get input
     $input = getJsonInput();
     
-    // Log input
-    file_put_contents('debug.log', "Input: " . print_r($input, true) . "\n", FILE_APPEND);
-    
     if (empty($input)) {
         sendResponse(false, "No input data received");
     }
+    
+    // Log for debugging (optional)
+    // file_put_contents('debug.log', "Register input: " . print_r($input, true) . "\n", FILE_APPEND);
     
     // Validate required fields
     if (!isset($input['name']) || empty($input['name'])) {
@@ -53,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // Check if email exists
         $checkStmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
         if (!$checkStmt) {
-            sendResponse(false, "Prepare failed: " . $conn->error);
+            sendResponse(false, "Database prepare failed");
         }
         
         $checkStmt->bind_param("s", $email);
@@ -70,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // Insert user
         $stmt = $conn->prepare("INSERT INTO users (name, email, password) VALUES (?, ?, ?)");
         if (!$stmt) {
-            sendResponse(false, "Prepare failed: " . $conn->error);
+            sendResponse(false, "Database prepare failed");
         }
         
         $stmt->bind_param("sss", $name, $email, $hashedPassword);
@@ -82,11 +73,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $userStmt = $conn->prepare("SELECT id, name, email, age, weight, height, gender, daily_goal FROM users WHERE id = ?");
             $userStmt->bind_param("i", $userId);
             $userStmt->execute();
-            $userData = $userStmt->get_result()->fetch_assoc();
+            $result = $userStmt->get_result();
+            $userData = $result->fetch_assoc();
             
             sendResponse(true, "Registration successful", $userData);
         } else {
-            sendResponse(false, "Registration failed: " . $stmt->error);
+            sendResponse(false, "Registration failed");
         }
         
     } catch (Exception $e) {

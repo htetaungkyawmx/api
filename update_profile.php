@@ -2,25 +2,24 @@
 require_once 'config.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'PUT') {
-    $input = json_decode(file_get_contents("php://input"), true);
+    $input = getJsonInput();
     
     if (!$input) {
-        sendResponse(false, "Invalid JSON data");
+        sendResponse(false, "Invalid input data");
     }
     
-    $error = validateRequired($input, ['user_id']);
-    if ($error) {
-        sendResponse(false, $error);
+    if (!isset($input['user_id']) || empty($input['user_id'])) {
+        sendResponse(false, "User ID is required");
     }
     
     $userId = validateInput($input['user_id']);
-    $name = validateInput($input['name'] ?? '');
-    $email = validateInput($input['email'] ?? '');
-    $age = validateInput($input['age'] ?? null);
-    $weight = $input['weight'] ?? null;
-    $height = $input['height'] ?? null;
-    $gender = validateInput($input['gender'] ?? '');
-    $dailyGoal = validateInput($input['daily_goal'] ?? null);
+    $name = isset($input['name']) ? validateInput($input['name']) : '';
+    $email = isset($input['email']) ? validateInput($input['email']) : '';
+    $age = isset($input['age']) ? validateInput($input['age']) : null;
+    $weight = isset($input['weight']) ? $input['weight'] : null;
+    $height = isset($input['height']) ? $input['height'] : null;
+    $gender = isset($input['gender']) ? validateInput($input['gender']) : '';
+    $dailyGoal = isset($input['daily_goal']) ? validateInput($input['daily_goal']) : null;
     
     // Check if user exists
     $checkStmt = $conn->prepare("SELECT id FROM users WHERE id = ?");
@@ -97,6 +96,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'PUT') {
     
     $query = "UPDATE users SET " . implode(", ", $updateFields) . " WHERE id = ?";
     $stmt = $conn->prepare($query);
+    
+    if (!$stmt) {
+        sendResponse(false, "Database error: " . $conn->error);
+    }
+    
     $stmt->bind_param($types, ...$params);
     
     if ($stmt->execute()) {
@@ -104,7 +108,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'PUT') {
         $userStmt = $conn->prepare("SELECT id, name, email, age, weight, height, gender, daily_goal FROM users WHERE id = ?");
         $userStmt->bind_param("i", $userId);
         $userStmt->execute();
-        $userData = $userStmt->get_result()->fetch_assoc();
+        $result = $userStmt->get_result();
+        $userData = $result->fetch_assoc();
         
         sendResponse(true, "Profile updated successfully", $userData);
     } else {

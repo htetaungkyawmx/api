@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
     $type = $_GET['type'] ?? null;
     $dateFrom = $_GET['date_from'] ?? null;
     $dateTo = $_GET['date_to'] ?? null;
-    $limit = $_GET['limit'] ?? 50;
+    $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 50;
     
     // Build query
     $query = "
@@ -45,10 +45,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
     }
     
     $query .= " ORDER BY a.date DESC LIMIT ?";
-    $params[] = (int)$limit;
+    $params[] = $limit;
     $types .= "i";
     
     $stmt = $conn->prepare($query);
+    
+    if (!$stmt) {
+        sendResponse(false, "Database error: " . $conn->error);
+    }
+    
     $stmt->bind_param($types, ...$params);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -88,7 +93,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
         $countStmt->bind_param("i", ...$countParams);
     }
     $countStmt->execute();
-    $total = $countStmt->get_result()->fetch_assoc()['total'];
+    $result = $countStmt->get_result();
+    $row = $result->fetch_assoc();
+    $total = $row['total'];
     
     sendResponse(true, "Activities retrieved successfully", [
         "activities" => $activities,

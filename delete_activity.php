@@ -2,21 +2,25 @@
 require_once 'config.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'DELETE') {
-    $input = json_decode(file_get_contents("php://input"), true);
+    $input = getJsonInput();
     
     if (!$input) {
-        sendResponse(false, "Invalid JSON data");
+        sendResponse(false, "Invalid input data");
     }
     
-    $error = validateRequired($input, ['id']);
-    if ($error) {
-        sendResponse(false, $error);
+    if (!isset($input['id']) || empty($input['id'])) {
+        sendResponse(false, "Activity ID is required");
     }
     
     $activityId = validateInput($input['id']);
     
     // Delete activity (cascade will delete weightlifting record)
     $stmt = $conn->prepare("DELETE FROM activities WHERE id = ?");
+    
+    if (!$stmt) {
+        sendResponse(false, "Database error: " . $conn->error);
+    }
+    
     $stmt->bind_param("i", $activityId);
     
     if ($stmt->execute()) {

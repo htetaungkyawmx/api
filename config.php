@@ -23,7 +23,7 @@ $username = "root";
 $password = "";
 $database = "fitness_tracker";
 
-// Create connection
+// Create MySQLi connection (use this instead of PDO for consistency)
 $conn = new mysqli($host, $username, $password, $database);
 
 // Check connection
@@ -77,17 +77,10 @@ function validateRequired($input, $requiredFields) {
 function getJsonInput() {
     $input = json_decode(file_get_contents("php://input"), true);
     
-    // If JSON decode fails, check for form data
-    if (!$input) {
-        $input = $_POST;
-        
-        // If still no data, try to parse raw input 
-        if (empty($input)) {
-            $rawInput = file_get_contents("php://input");
-            if (!empty($rawInput)) {
-                parse_str($rawInput, $input);
-            }
-        }
+    // If JSON decode fails, try to get raw input
+    if (!$input && !empty(file_get_contents("php://input"))) {
+        $raw = file_get_contents("php://input");
+        return ["raw_input" => $raw];
     }
     
     return $input;

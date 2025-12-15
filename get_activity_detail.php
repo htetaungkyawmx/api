@@ -17,6 +17,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
     ";
     
     $stmt = $conn->prepare($query);
+    
+    if (!$stmt) {
+        sendResponse(false, "Database error: " . $conn->error);
+    }
+    
     $stmt->bind_param("i", $activityId);
     $stmt->execute();
     $result = $stmt->get_result();

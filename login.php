@@ -2,16 +2,19 @@
 require_once 'config.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $input = json_decode(file_get_contents("php://input"), true);
+    $input = getJsonInput();
     
-    if (!$input) {
-        sendResponse(false, "Invalid JSON data");
+    if (!$input || empty($input)) {
+        sendResponse(false, "Invalid or empty input data");
     }
     
     // Validate required fields
-    $error = validateRequired($input, ['email', 'password']);
-    if ($error) {
-        sendResponse(false, $error);
+    if (!isset($input['email']) || empty($input['email'])) {
+        sendResponse(false, "Email is required");
+    }
+    
+    if (!isset($input['password']) || empty($input['password'])) {
+        sendResponse(false, "Password is required");
     }
     
     $email = validateInput($input['email']);
@@ -19,6 +22,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     // Get user from database
     $stmt = $conn->prepare("SELECT id, name, email, password, age, weight, height, gender, daily_goal FROM users WHERE email = ?");
+    
+    if (!$stmt) {
+        sendResponse(false, "Database error");
+    }
+    
     $stmt->bind_param("s", $email);
     $stmt->execute();
     $result = $stmt->get_result();

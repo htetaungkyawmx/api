@@ -40,6 +40,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
         FROM activities 
         WHERE user_id = ? AND $dateCondition
     ");
+    
+    if (!$stmt) {
+        sendResponse(false, "Database error: " . $conn->error);
+    }
+    
     $stmt->bind_param("i", $userId);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -51,13 +56,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
         $steps = rand(5000, 15000);
     }
     
+    $activityTypes = [];
+    if (!empty($stats['activity_types'])) {
+        $activityTypes = explode(',', $stats['activity_types']);
+    }
+    
     $response = [
         "steps" => (int)$steps,
         "calories" => (int)($stats['total_calories'] ?? 0),
         "distance" => (float)($stats['total_distance'] ?? 0),
         "duration" => (int)($stats['total_duration'] ?? 0),
         "total_activities" => (int)($stats['total_activities'] ?? 0),
-        "activity_types" => $stats['activity_types'] ? explode(',', $stats['activity_types']) : []
+        "activity_types" => $activityTypes
     ];
     
     sendResponse(true, "Stats retrieved successfully", $response);

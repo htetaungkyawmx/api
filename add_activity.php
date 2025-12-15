@@ -2,25 +2,26 @@
 require_once 'config.php';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $input = json_decode(file_get_contents("php://input"), true);
+    $input = getJsonInput();
     
     if (!$input) {
-        sendResponse(false, "Invalid JSON data");
+        sendResponse(false, "Invalid input data");
     }
     
     // Validate required fields
     $required = ['user_id', 'type', 'duration', 'calories', 'date'];
-    $error = validateRequired($input, $required);
-    if ($error) {
-        sendResponse(false, $error);
+    foreach ($required as $field) {
+        if (!isset($input[$field]) || empty($input[$field])) {
+            sendResponse(false, "$field is required");
+        }
     }
     
     $userId = validateInput($input['user_id']);
     $type = validateInput($input['type']);
     $duration = validateInput($input['duration']);
-    $distance = $input['distance'] ?? 0;
+    $distance = isset($input['distance']) ? $input['distance'] : 0;
     $calories = validateInput($input['calories']);
-    $note = validateInput($input['note'] ?? '');
+    $note = isset($input['note']) ? validateInput($input['note']) : '';
     $date = validateInput($input['date']);
     
     // Check if user exists
@@ -34,6 +35,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     // Insert activity
     $stmt = $conn->prepare("INSERT INTO activities (user_id, type, duration, distance, calories, note, date) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    
+    if (!$stmt) {
+        sendResponse(false, "Database error: " . $conn->error);
+    }
+    
     $stmt->bind_param("isidiss", $userId, $type, $duration, $distance, $calories, $note, $date);
     
     if ($stmt->execute()) {
@@ -42,13 +48,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // Handle weightlifting specific data
         if ($type == 'Weightlifting' && isset($input['exercise_name'])) {
             $exerciseName = validateInput($input['exercise_name']);
-            $sets = validateInput($input['sets'] ?? 0);
-            $reps = validateInput($input['reps'] ?? 0);
-            $weight = validateInput($input['weight'] ?? 0);
+            $sets = isset($input['sets']) ? validateInput($input['sets']) : 0;
+            $reps = isset($input['reps']) ? validateInput($input['reps']) : 0;
+            $weight = isset($input['weight']) ? validateInput($input['weight']) : 0;
             
             $weightStmt = $conn->prepare("INSERT INTO weightlifting_activities (activity_id, exercise_name, sets, reps, weight) VALUES (?, ?, ?, ?, ?)");
-            $weightStmt->bind_param("isiid", $activityId, $exerciseName, $sets, $reps, $weight);
-            $weightStmt->execute();
+            if ($weightStmt) {
+                $weightStmt->bind_param("isiid", $activityId, $exerciseName, $sets, $reps, $weight);
+                $weightStmt->execute();
+            }
         }
         
         // Get complete activity data
@@ -59,11 +67,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             LEFT JOIN weightlifting_activities w ON a.id = w.activity_id
             WHERE a.id = ?
         ");
-        $activityStmt->bind_param("i", $activityId);
-        $activityStmt->execute();
-        $activityData = $activityStmt->get_result()->fetch_assoc();
         
-        sendResponse(true, "Activity added successfully", $activityData);
+        if ($activityStmt) {
+            $activityStmt->bind_param("i", $activityId);
+            $activityStmt->execute();
+            $result = $activityStmt->get_result();
+            $activityData = $result->fetch_assoc();
+            
+            sendResponse(true, "Activity added successfully", $activityData);
+        } else {
+            sendResponse(true, "Activity added successfully (ID: $activityId)");
+        }
     } else {
         sendResponse(false, "Failed to add activity: " . $stmt->error);
     }
