@@ -1,15 +1,14 @@
 <?php
-// Enable error reporting for debugging
+// Enable error reporting
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 
-// Headers for CORS
+// Set headers FIRST
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With, Accept");
-header("Access-Control-Allow-Credentials: true");
 
 // Handle OPTIONS request for CORS
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -23,7 +22,7 @@ $username = "root";
 $password = "";
 $database = "fitness_tracker";
 
-// Create MySQLi connection (use this instead of PDO for consistency)
+// Create connection
 $conn = new mysqli($host, $username, $password, $database);
 
 // Check connection
@@ -63,26 +62,9 @@ function sendResponse($success, $message, $data = null) {
     exit();
 }
 
-// Helper function to validate required fields
-function validateRequired($input, $requiredFields) {
-    foreach ($requiredFields as $field) {
-        if (!isset($input[$field]) || empty($input[$field])) {
-            return "$field is required";
-        }
-    }
-    return null;
-}
-
-// Function to handle JSON input
+// Function to get JSON input
 function getJsonInput() {
-    $input = json_decode(file_get_contents("php://input"), true);
-    
-    // If JSON decode fails, try to get raw input
-    if (!$input && !empty(file_get_contents("php://input"))) {
-        $raw = file_get_contents("php://input");
-        return ["raw_input" => $raw];
-    }
-    
-    return $input;
+    $json = file_get_contents('php://input');
+    return json_decode($json, true);
 }
 ?>

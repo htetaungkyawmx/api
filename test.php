@@ -1,19 +1,20 @@
 <?php
-// Test if PHP is working
-echo "PHP is working! Server time: " . date('Y-m-d H:i:s');
+require_once 'config.php';
 
-// Test database connection
-$conn = new mysqli("localhost", "root", "", "fitness_tracker");
-if ($conn->connect_error) {
-    echo "<br>Database connection failed: " . $conn->connect_error;
-} else {
-    echo "<br>Database connected successfully!";
+// Simple test endpoint
+if ($_SERVER['REQUEST_METHOD'] == 'GET') {
+    echo json_encode([
+        "success" => true,
+        "message" => "API is working!",
+        "timestamp" => date('Y-m-d H:i:s')
+    ]);
+} else if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $input = getJsonInput();
     
-    // Test query
-    $result = $conn->query("SHOW TABLES");
-    echo "<br>Tables in database:";
-    while ($row = $result->fetch_array()) {
-        echo "<br>- " . $row[0];
-    }
+    echo json_encode([
+        "success" => true,
+        "message" => "POST received",
+        "data_received" => $input
+    ]);
 }
 ?>
